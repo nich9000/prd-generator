@@ -29,6 +29,19 @@ Rules:
 - Cover the happy path AND at least one error/edge case.
 - Stories should ladder up to the success metrics.
 
+CRITICAL formatting rules for the JSON values (the renderer wraps each field
+into "As a {role}, I want to {goal} so that {benefit}." -- do NOT duplicate
+those leading phrases inside your values):
+- "role": just the persona, NO leading "As a" or "As an".
+  YES: "iOS shopper"
+  NO:  "As an iOS shopper"
+- "goal": starts with a verb, NO leading "I want to".
+  YES: "pay using Apple Pay with a single Face ID confirmation"
+  NO:  "I want to pay using Apple Pay..."
+- "benefit": just the reason, NO leading "so that" or "so I can".
+  YES: "I can check out faster without entering card details"
+  NO:  "so that I can check out faster..."
+
 Return ONLY valid JSON:
 { "stories": [
     {"role":"...","goal":"...","benefit":"...","priority":"P0|P1|P2"}
@@ -41,7 +54,7 @@ criteria in Given/When/Then form. Given a list of user stories, produce 1-3
 acceptance criteria per story (returned as a flat list).
 
 Rules:
-- Each AC must be testable. No "the system feels fast" — use measurable conditions.
+- Each AC must be testable. No "the system feels fast" -- use measurable conditions.
 - "Given" describes setup, "When" the user action, "Then" the observable result.
 - Cover at least one negative path (auth failure, network failure, validation).
 

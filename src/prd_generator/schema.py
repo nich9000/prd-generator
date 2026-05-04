@@ -12,6 +12,17 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+def _strip_prefix(text: str, prefixes: tuple[str, ...]) -> str:
+    """Remove any leading prefix (case-insensitive) so we don't double-wrap
+    when a model returns 'As an X' instead of just 'X'."""
+    stripped = text.lstrip()
+    lower = stripped.lower()
+    for p in prefixes:
+        if lower.startswith(p.lower()):
+            return stripped[len(p):].lstrip()
+    return stripped
+
+
 class UserStory(BaseModel):
     """A single user story in the standard role/goal/benefit form."""
 
@@ -21,7 +32,10 @@ class UserStory(BaseModel):
     priority: Literal["P0", "P1", "P2"] = "P1"
 
     def render(self) -> str:
-        return f"As a **{self.role}**, I want to {self.goal} so that {self.benefit}."
+        role = _strip_prefix(self.role, ("As an ", "As a "))
+        goal = _strip_prefix(self.goal, ("I want to ", "I want ", "I'd like to "))
+        benefit = _strip_prefix(self.benefit, ("so that ", "so ", "in order to ", "to "))
+        return f"As a **{role}**, I want to {goal} so that {benefit}."
 
 
 class AcceptanceCriterion(BaseModel):
@@ -47,10 +61,10 @@ class EarsSpec(BaseModel):
     """
 
     pattern: Literal["ubiquitous", "event", "state", "unwanted", "optional"]
-    trigger: str | None = None  # e.g. "the user submits the cart"
-    state: str | None = None  # e.g. "the user is signed in"
-    unwanted: str | None = None  # e.g. "payment authorization fails"
-    feature: str | None = None  # e.g. "Apple Pay is available"
+    trigger: str | None = None
+    state: str | None = None
+    unwanted: str | None = None
+    feature: str | None = None
     system: str = Field(..., description="Subject of the requirement")
     behavior: str = Field(..., description="What the system does")
 
@@ -111,7 +125,7 @@ class PRD(BaseModel):
             lines.append(f"- **R-{i:02d}** {r.render()}")
         lines.append("\n## Risks\n")
         for r in self.risks:
-            lines.append(f"- **{r.severity.upper()}** — {r.description}  \n  *Mitigation:* {r.mitigation}")
+            lines.append(f"- **{r.severity.upper()}** -- {r.description}  \n  *Mitigation:* {r.mitigation}")
         if self.out_of_scope:
             lines.append("\n## Out of scope\n")
             for x in self.out_of_scope:

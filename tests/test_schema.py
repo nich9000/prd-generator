@@ -16,6 +16,19 @@ def test_user_story_renders_in_role_goal_benefit_form():
     )
 
 
+def test_user_story_strips_duplicated_prefixes():
+    """Defensive: if the model leaks 'As an' / 'I want to' / 'so that' into
+    the values, the renderer must NOT double them up."""
+    s = UserStory(
+        role="As an iOS shopper",
+        goal="I want to pay with Apple Pay",
+        benefit="so that I can check out faster",
+    )
+    assert s.render() == (
+        "As a **iOS shopper**, I want to pay with Apple Pay so that I can check out faster."
+    )
+
+
 def test_acceptance_criterion_uses_given_when_then():
     ac = AcceptanceCriterion(given="I have an abandoned cart", when="I open the app", then="a banner appears")
     out = ac.render()
