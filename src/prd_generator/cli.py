@@ -24,7 +24,12 @@ console = Console()
     help="Write PRD markdown to this file.",
 )
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON instead of markdown.")
-def main(idea: tuple[str, ...], output: Path | None, as_json: bool) -> None:
+@click.option(
+    "--no-diagrams",
+    is_flag=True,
+    help="Skip the diagrammer agent (saves ~$0.02/run).",
+)
+def main(idea: tuple[str, ...], output: Path | None, as_json: bool, no_diagrams: bool) -> None:
     """Turn a one-line product idea into a structured PRD."""
     one_liner = " ".join(idea).strip()
     if not one_liner:
@@ -32,8 +37,8 @@ def main(idea: tuple[str, ...], output: Path | None, as_json: bool) -> None:
         sys.exit(2)
 
     console.print(Panel(one_liner, title="Idea", border_style="cyan"))
-    with console.status("[bold cyan]Generating PRD…[/]"):
-        prd = generate_prd(one_liner)
+    with console.status("[bold cyan]Generating PRD...[/]"):
+        prd = generate_prd(one_liner, with_diagrams=not no_diagrams)
 
     if as_json:
         out = prd.model_dump_json(indent=2)

@@ -1,189 +1,239 @@
-# iOS App via WebView Wrapper
+# Native iOS Shell for Mobile Web Store
 
 > Ship our existing mobile-web shopping experience as a native iOS app using a WebView wrapper, so customers can install us from the App Store and we can use push notifications, biometric unlock, and Apple Pay without rebuilding the storefront.
 
+| | |
+|---|---|
+| **Primary metric** | Achieve a checkout conversion rate in the iOS app that is at least 15% higher than the current mobile-web checkout conversion rate within 90 days of launch. |
+| **Top risk** | HIGH — Apple Pay entitlement and merchant ID configuration errors delay launch. Misconfigured merchant certificates, missing Associated Domains entitlements, or sandbox/production environment mismatches can cause Apple Pay to silently fail or be unavailable on device—blocking the P0 checkout story and the 30% checkout-time reduction metric. |
+| **Scope** | 8 stories (5 P0) · 15 requirements |
+| **Persona** | Existing and prospective customers who shop on iOS devices and prefer or expect a native app experience, particularly repeat buyers who would benefit from faster authentication and checkout. |
+
+
+## Overview
+
+### User flow
+
+```mermaid
+flowchart TD
+    A[User downloads app from App Store] --> B[App launches and shows opt-in prompt]
+    B --> C[User grants push notification permission]
+    C --> D[User authenticates with Face ID or Touch ID]
+    D --> E[User browses catalog and adds items to cart]
+    E --> F[User taps Checkout]
+    F --> G{Apple Pay available?}
+    G -->|yes| H[User confirms with Face ID or Touch ID]
+    H --> I[Order confirmed and push notification sent]
+    G -->|no or declined| J[Show error and offer card or saved payment]
+    J --> I
+```
+
+### System context
+
+```mermaid
+flowchart LR
+    App[iOS Native Shell] -->|HTTPS requests| API[Commerce API]
+    App -->|biometric auth token| Auth[Identity Service]
+    App -->|payment sheet| ApplePay[Apple Pay]
+    ApplePay -->|payment token| API
+    API -->|order events| Push[Push Notification Service]
+    Push -->|APNs delivery| APNS[Apple Push Notification Service]
+    APNS -->|push to device| App
+    API -->|reads and writes| DB[Order and Customer Store]
+```
+
 ## Problem
 
-Customers cannot install our storefront from the App Store, leaving us without access to native iOS capabilities — push notifications, biometric authentication, and Apple Pay — that reduce friction and drive repeat purchases. Building a fully native app is prohibitively slow, so a WebView wrapper lets us ship these capabilities against our existing mobile-web codebase.
+Customers shopping on our mobile website cannot install the store on their home screen via the App Store, receive push notifications about orders or promotions, authenticate quickly with Face ID/Touch ID, or check out using Apple Pay — all of which require a native iOS container that we currently lack.
 
 ## Target user
 
-Existing and prospective customers who shop on iOS and prefer or expect a native app experience, particularly repeat buyers who would benefit from saved credentials, payment shortcuts, and timely promotional alerts.
+Existing and prospective customers who shop on iOS devices and prefer or expect a native app experience, particularly repeat buyers who would benefit from faster authentication and checkout.
 
 ## Success metrics
 
-- Achieve an App Store rating of 4.3 stars or higher within 90 days of launch, measured across a minimum of 500 ratings.
-- Push notification opt-in rate of at least 45% among users who complete their first app session within the first 60 days.
-- Apple Pay adoption on at least 30% of all iOS app transactions within 90 days, compared to 0% on mobile web today.
-- 30-day retention rate for app users is at least 10 percentage points higher than the 30-day return rate for mobile-web users in the same cohort period.
-- App store page load time (WebView fully interactive) remains under 3 seconds on an iPhone 12 or newer on a 4G connection for at least 95% of sessions.
+- Achieve a checkout conversion rate in the iOS app that is at least 15% higher than the current mobile-web checkout conversion rate within 90 days of launch.
+- Reach a push notification opt-in rate of 50% or more among new app installs within the first 60 days.
+- Reduce average checkout time (cart to order confirmation) by 30% for sessions where Apple Pay is used compared to the mobile-web credit-card flow baseline.
+- Attain an App Store rating of 4.2 stars or higher within the first 500 ratings.
+- Drive at least 20% of total mobile order volume through the iOS app within 6 months of launch.
 
 ## User stories
 
-**US-01 (P0).** As a **iOS shopper**, I want to download and install the app from the App Store and have the storefront WebView become fully interactive within 3 seconds on a 4G connection so that I can start browsing without frustrating load delays that would cause me to abandon the app immediately.
+**US-01 (P0).** As a **iOS shopper**, I want to download the store app from the App Store and install it on my home screen so that I have a native app icon for quick, one-tap access to the store without navigating to a browser.
 
-**US-02 (P0).** As a **iOS shopper completing a purchase**, I want to pay using Apple Pay with a single Face ID or Touch ID confirmation inside the app so that I can check out faster without manually entering card details, reducing friction that would otherwise cause me to abandon my cart.
+**US-02 (P0).** As a **repeat iOS shopper**, I want to authenticate into my existing account using Face ID or Touch ID instead of typing my email and password so that I can log in in seconds, reducing friction that previously caused me to abandon the session.
 
-**US-03 (P0).** As a **first-time app user who has just completed my initial session**, I want to be prompted once to allow push notifications via a native iOS permission dialog, presented at a contextually appropriate moment after I have experienced app value so that I can receive timely promotional alerts and order updates that bring me back to the app and drive repeat purchases.
+**US-03 (P0).** As a **iOS shopper with items in my cart**, I want to complete payment using Apple Pay with a single Face ID or Touch ID confirmation so that I can check out significantly faster without manually entering card and billing details, increasing my likelihood of completing the purchase.
 
-**US-04 (P1).** As a **returning iOS shopper**, I want to authenticate into my account using Face ID or Touch ID instead of typing my password so that I can access my saved addresses and order history quickly, making repeat purchases feel seamless and encouraging me to return.
+**US-04 (P0).** As a **new app installer**, I want to be presented with a clear, plain-language push notification opt-in prompt that explains what notifications I will receive before iOS shows the system dialog so that I can make an informed choice, increasing my trust in the app and the likelihood I will opt in to order and promotional alerts.
 
-**US-05 (P1).** As a **iOS shopper on a degraded or offline network**, I want to see a clear, branded error screen with a retry action when the WebView fails to load rather than a blank white page or a generic browser error so that I understand what went wrong and can recover without losing trust in the app, protecting our App Store rating.
+**US-05 (P1).** As a **opted-in iOS shopper**, I want to receive a push notification when my order status changes (e.g., confirmed, shipped, out for delivery) so that I stay informed about my order without having to open the app or check my email, reinforcing my confidence in the shopping experience.
 
-**US-06 (P1).** As a **iOS shopper who taps a deep-link in a push notification**, I want to be taken directly to the promoted product or offer page inside the app rather than landing on the homepage so that the promotional message delivers on its promise and I can act on the offer without extra navigation steps that reduce conversion.
+**US-06 (P1).** As a **opted-in iOS shopper**, I want to receive targeted promotional push notifications (e.g., flash sales, back-in-stock alerts) that deep-link directly to the relevant product or category page so that I can act on relevant offers immediately, driving incremental purchases that contribute to app order volume.
 
-**US-07 (P1).** As a **iOS shopper whose device does not support Face ID or Touch ID**, I want to fall back gracefully to standard email-and-password login when biometric authentication is unavailable or disabled so that I am never locked out of my account due to a missing hardware capability, ensuring the app is usable across all supported devices.
+**US-07 (P0).** As a **iOS shopper whose Apple Pay transaction is declined or unavailable**, I want to be shown a clear error message and seamlessly offered an alternative payment method (credit/debit card or saved payment) without losing my cart so that I can still complete my purchase without frustration or having to restart checkout, protecting conversion even in the error case.
 
-**US-08 (P2).** As a **shopper who declines the push notification permission prompt**, I want to continue using the app without repeated re-prompting during the same session and without any degraded shopping functionality so that I do not feel harassed into granting permissions, which would otherwise lead to negative App Store reviews that drag our rating below 4.3 stars.
+**US-08 (P2).** As a **first-time app user who is not yet logged in**, I want to browse the store and add items to a guest cart before being prompted to sign in or register only at checkout so that I can explore the catalog without commitment, lowering the barrier to first engagement and improving the likelihood I complete a first purchase.
 
 ## Acceptance criteria
 
 **AC-01**
 
-- **Given** An iOS device connected to a 4G network (minimum 12 Mbps download) with the app freshly installed from the App Store
-- **When** The user launches the app for the first time
-- **Then** The storefront WebView must fire its 'page interactive' event (DOMContentLoaded + first meaningful paint) within 3 seconds of app launch, measurable via instrumented performance logging
+- **Given** A user searches for the store app by name in the iOS App Store on a supported iOS version (iOS 16+)
+- **When** the user taps 'Get' and confirms installation
+- **Then** the app icon appears on the home screen within 60 seconds and the app launches successfully on first tap
 
 **AC-02**
 
-- **Given** An iOS device connected to a 4G network with the app installed
-- **When** The user launches the app and the WebView begins loading
-- **Then** A loading indicator is displayed immediately (within 100 ms of launch) and disappears once the WebView is interactive, ensuring no blank white screen is shown at any point during the load sequence
+- **Given** A user attempts to install the app on a device running an iOS version below the minimum supported version
+- **When** the user views the App Store listing
+- **Then** the app is not installable and the App Store displays a message indicating the device or OS is not compatible
 
 **AC-03**
 
-- **Given** An iOS shopper with a valid Apple Pay payment method configured on their device and items in their cart
-- **When** The shopper taps the Apple Pay button and confirms the payment sheet using Face ID or Touch ID
-- **Then** The purchase is authorized and a confirmation screen is displayed within 5 seconds, with no manual card-detail entry required at any step
+- **Given** A returning user with an existing account has Face ID or Touch ID enabled on their device and has previously linked biometric authentication to their account in the app
+- **When** the user opens the app and taps 'Sign in with Face ID / Touch ID'
+- **Then** the user is authenticated and lands on their account home screen within 3 seconds of successful biometric confirmation
 
 **AC-04**
 
-- **Given** An iOS shopper attempts Apple Pay checkout but Face ID or Touch ID authentication fails three consecutive times
-- **When** The biometric authentication is rejected
-- **Then** The Apple Pay sheet is dismissed, no charge is applied, and the shopper is returned to the cart with an error message indicating the payment was not completed
+- **Given** A returning user attempts biometric login but fails authentication (e.g., unrecognized face or finger) three consecutive times
+- **When** the third biometric attempt fails
+- **Then** biometric login is disabled for that session, the user is prompted to enter their email and password, and no account lockout is triggered solely by biometric failure
 
 **AC-05**
 
-- **Given** A first-time user who has completed at least one meaningful in-app action (e.g., viewed a product detail page or added an item to the cart) during their initial session
-- **When** The contextual trigger condition is met for the first time
-- **Then** The native iOS push notification permission dialog is presented exactly once per app install, and no custom pre-prompt or repeated system prompt is shown within the same session
+- **Given** An authenticated iOS shopper has one or more items in their cart and the device has Apple Pay configured with at least one valid payment method
+- **When** the user taps 'Apple Pay' at checkout and confirms with Face ID or Touch ID
+- **Then** the order is placed, a confirmation screen with order number is displayed within 5 seconds, and the cart is cleared
 
 **AC-06**
 
-- **Given** A first-time user who has not yet been shown the push notification permission dialog
-- **When** The user completes their first session without triggering the contextual prompt condition
-- **Then** The native iOS permission dialog is not shown until the qualifying contextual moment is reached, and it is never shown more than once regardless of subsequent sessions
+- **Given** An authenticated iOS shopper has items in their cart and taps 'Apple Pay' but Apple Pay is not set up on the device
+- **When** the Apple Pay sheet fails to load
+- **Then** an inline error message is displayed explaining Apple Pay is unavailable, the cart contents are preserved, and the user is offered alternative payment methods (credit/debit card or saved payment) without restarting checkout
 
 **AC-07**
 
-- **Given** A returning iOS shopper with biometric authentication enabled on their device and a valid stored session credential
-- **When** The shopper opens the app and initiates login
-- **Then** A Face ID or Touch ID prompt is presented, and upon successful biometric confirmation the shopper is logged in and lands on their account home screen within 2 seconds, with no password entry required
+- **Given** A first-time user has installed the app and launches it for the first time
+- **When** the app reaches the notification opt-in step during onboarding
+- **Then** a custom in-app screen is displayed before the iOS system prompt, describing in plain language the specific notification types (e.g., order updates, promotional offers) the user will receive, and the iOS system dialog only appears after the user taps 'Continue' on the custom screen
 
 **AC-08**
 
-- **Given** A returning iOS shopper attempts biometric login but provides an incorrect biometric three consecutive times
-- **When** The system exhausts the biometric retry limit
-- **Then** The biometric prompt is dismissed, the shopper is presented with the email-and-password login form, and no account lockout is triggered solely due to biometric failure
+- **Given** A first-time user taps 'Decline' or 'Not Now' on the custom pre-prompt notification screen
+- **When** the user dismisses the pre-prompt
+- **Then** the iOS system dialog is not shown, the user proceeds into the app without interruption, and the app does not attempt to show the pre-prompt again in the same session
 
 **AC-09**
 
-- **Given** An iOS shopper whose device has no active network connection or is on a degraded connection that causes the WebView to time out after 10 seconds
-- **When** The WebView fails to load
-- **Then** A branded error screen containing the app logo, a human-readable error message, and a 'Retry' button is displayed in place of the WebView within 1 second of the failure event, with no blank white page or generic browser error shown at any point
+- **Given** An iOS shopper has opted in to push notifications and has a confirmed order
+- **When** the order status changes to 'Confirmed', 'Shipped', or 'Out for Delivery' in the backend system
+- **Then** a push notification is delivered to the user's device within 5 minutes of the status change, displaying the relevant status text and order identifier
 
 **AC-10**
 
-- **Given** An iOS shopper is viewing the branded offline error screen
-- **When** The shopper taps the 'Retry' button and a network connection is available
-- **Then** The WebView reload is initiated immediately and the storefront becomes interactive within 3 seconds on a 4G connection, returning the shopper to the same URL that originally failed
+- **Given** An iOS shopper has opted out of push notifications at the iOS system level
+- **When** an order status change event is triggered in the backend
+- **Then** no push notification is delivered to that device and no error is logged in the app; the status change remains visible inside the app when the user opens it
 
 **AC-11**
 
-- **Given** An iOS shopper has granted push notification permission and the app is in the background or closed
-- **When** The shopper taps a push notification containing a valid deep-link URL to a specific product or offer page
-- **Then** The app opens and the WebView navigates directly to the deep-linked product or offer page within 3 seconds, bypassing the homepage entirely
+- **Given** An opted-in iOS shopper is eligible for a targeted promotional notification (e.g., flash sale, back-in-stock alert)
+- **When** the push notification is delivered and the user taps it
+- **Then** the app opens directly to the relevant product page or category page (deep link) within 2 seconds, and the user does not land on the app home screen
 
 **AC-12**
 
-- **Given** An iOS shopper taps a push notification containing a deep-link URL that references a product or offer that is no longer available
-- **When** The WebView attempts to load the deep-linked page
-- **Then** The app displays a relevant error or 'item unavailable' page rather than the homepage or a blank screen, and a navigation path back to the storefront homepage is accessible within one tap
+- **Given** A promotional push notification contains a deep link to a product that has since been removed from the catalog
+- **When** the user taps the notification
+- **Then** the app opens and displays a clear 'Product no longer available' message on the intended destination page rather than a blank screen or unhandled error
 
 **AC-13**
 
-- **Given** An iOS shopper is using a device that does not have Face ID or Touch ID hardware, or has biometrics disabled in device settings
-- **When** The shopper opens the app and initiates login
-- **Then** The biometric prompt is never shown; instead, the email-and-password login form is presented immediately, and the shopper can successfully authenticate and access all account features
+- **Given** An iOS shopper with items in their cart initiates Apple Pay checkout and the payment transaction is declined by the payment processor
+- **When** the decline response is returned
+- **Then** a clear, human-readable error message (e.g., 'Your Apple Pay payment was declined. Please try another payment method.') is shown, the cart contents are fully preserved, and the user is presented with selectable alternative payment methods without re-entering cart or shipping information
 
 **AC-14**
 
-- **Given** An iOS shopper has biometrics available on their device but declines to enroll or disables the feature within the app's settings
-- **When** The shopper initiates login
-- **Then** The app falls back to the email-and-password login form without displaying any error related to biometrics, and the shopper can complete login without being prompted to re-enable biometrics during that session
+- **Given** A guest user (not logged in) is browsing the app on iOS
+- **When** the user taps 'Add to Cart' on a product page
+- **Then** the item is added to a guest cart and the cart item count updates in the UI without any sign-in or registration prompt being displayed
 
 **AC-15**
 
-- **Given** A shopper who has declined the native iOS push notification permission prompt
-- **When** The shopper continues browsing, adds items to the cart, and completes a purchase within the same session
-- **Then** No second push notification permission prompt (native or custom) is displayed during that session, and all shopping features — including cart, checkout, and order confirmation — function identically to the experience of a shopper who granted permission
-
-**AC-16**
-
-- **Given** A shopper who declined push notification permission in a previous session relaunches the app
-- **When** The shopper uses the app across multiple subsequent sessions
-- **Then** The native iOS push notification permission dialog is never re-triggered by the app (since iOS prevents re-prompting after denial), and no custom in-app modal requesting notification permission is displayed more than zero additional times after the initial decline
+- **Given** A guest user has one or more items in their guest cart and taps 'Proceed to Checkout'
+- **When** the checkout flow begins
+- **Then** the user is prompted to sign in or create an account at that step, the guest cart items are preserved and displayed in the checkout summary after authentication, and no items are lost during the sign-in/registration transition
 
 ## Requirements (EARS)
 
-- **R-01** When the user launches the app for the first time on an iOS device connected to a 4G network (minimum 12 Mbps download) with the app freshly installed, the storefront WebView shall fire its 'page interactive' event (DOMContentLoaded + first meaningful paint) within 3 seconds of app launch, as recorded by instrumented performance logging.
-- **R-02** When the app is launched and the WebView begins loading, the app shall display a loading indicator within 100 milliseconds of launch and keep it visible until the WebView is interactive, ensuring no blank white screen is shown at any point during the load sequence.
-- **R-03** When an iOS shopper with a valid Apple Pay payment method and items in their cart taps the Apple Pay button and confirms the payment sheet using Face ID or Touch ID, the app shall authorize the purchase and display a confirmation screen within 5 seconds, with no manual card-detail entry required at any step.
-- **R-04** If Face ID or Touch ID authentication for Apple Pay fails three consecutive times, then the app shall dismiss the Apple Pay sheet, apply no charge, and return the shopper to the cart with an error message indicating the payment was not completed.
-- **R-05** When a first-time user who has completed at least one meaningful in-app action (e.g., viewed a product detail page or added an item to the cart) meets the contextual trigger condition for the first time, the app shall present the native iOS push notification permission dialog exactly once per app install, without showing any custom pre-prompt or repeating the system prompt within the same session.
-- **R-06** When a first-time user completes their first session without triggering the contextual push notification prompt condition, the app shall withhold the native iOS push notification permission dialog until the qualifying contextual moment is reached, and shall never display it more than once regardless of subsequent sessions.
-- **R-07** When a returning iOS shopper with biometric authentication enabled and a valid stored session credential opens the app and initiates login, the app shall present a Face ID or Touch ID prompt and, upon successful biometric confirmation, log the shopper in and navigate to their account home screen within 2 seconds, with no password entry required.
-- **R-08** If a returning iOS shopper provides an incorrect biometric three consecutive times and the system exhausts the biometric retry limit, then the app shall dismiss the biometric prompt, present the email-and-password login form, and trigger no account lockout solely due to biometric failure.
-- **R-09** If the WebView fails to load because the device has no active network connection or a degraded connection causes a timeout after 10 seconds, then the app shall display a branded error screen containing the app logo, a human-readable error message, and a 'Retry' button in place of the WebView within 1 second of the failure event, with no blank white page or generic browser error shown at any point.
-- **R-10** When an iOS shopper viewing the branded offline error screen taps the 'Retry' button and a network connection is available, the app shall initiate a WebView reload immediately, make the storefront interactive within 3 seconds on a 4G connection, and navigate to the same URL that originally failed.
-- **R-11** When an iOS shopper who has granted push notification permission taps a push notification containing a valid deep-link URL to a specific product or offer page, the app shall open and navigate the WebView directly to the deep-linked product or offer page within 3 seconds, bypassing the homepage entirely.
-- **R-12** If the WebView attempts to load a deep-linked page referencing a product or offer that is no longer available, then the app shall display a relevant error or 'item unavailable' page rather than the homepage or a blank screen, and provide a navigation path back to the storefront homepage that is accessible within one tap.
-- **R-13** When an iOS shopper on a device that lacks Face ID or Touch ID hardware, or has biometrics disabled in device settings, opens the app and initiates login, the app shall never show the biometric prompt, present the email-and-password login form immediately, and allow the shopper to successfully authenticate and access all account features.
-- **R-14** When an iOS shopper who has declined biometric enrollment or disabled the biometric feature in app settings initiates login, the app shall fall back to the email-and-password login form without displaying any biometric-related error, and complete login without prompting the shopper to re-enable biometrics during that session.
-- **R-15** While a shopper has declined the native iOS push notification permission prompt and is continuing to browse, add items to the cart, or complete a purchase within the same session, the app shall display no second push notification permission prompt (native or custom) and provide cart, checkout, and order confirmation functionality identical to that of a shopper who granted permission.
-- **R-16** While a shopper who declined push notification permission in a previous session is using the app across one or more subsequent sessions, the app shall never re-trigger the native iOS push notification permission dialog and display no custom in-app modal requesting notification permission on any occasion after the initial decline.
+- **R-01** When a user taps 'Get' and confirms installation of the store app in the iOS App Store on a device running iOS 16 or later, the app shall appear as an icon on the home screen within 60 seconds and launch successfully on the first tap.
+- **R-02** If a user views the App Store listing for the store app on a device running an iOS version below the minimum supported version, then the App Store shall prevent installation of the app and display a message indicating the device or OS is not compatible.
+- **R-03** When a returning user with biometric authentication previously linked to their account taps 'Sign in with Face ID / Touch ID' and biometric confirmation succeeds, the app shall authenticate the user and display their account home screen within 3 seconds of successful biometric confirmation.
+- **R-04** If a returning user fails biometric authentication three consecutive times, then the app shall disable biometric login for that session, prompt the user to enter their email and password, and not trigger an account lockout solely as a result of the biometric failures.
+- **R-05** When an authenticated iOS shopper with one or more items in their cart and a configured Apple Pay payment method taps 'Apple Pay' at checkout and confirms with Face ID or Touch ID, the app shall place the order, display a confirmation screen containing the order number within 5 seconds, and clear the cart.
+- **R-06** If an authenticated iOS shopper taps 'Apple Pay' at checkout and the Apple Pay sheet fails to load because Apple Pay is not set up on the device, then the app shall display an inline error message explaining that Apple Pay is unavailable, preserve all cart contents, and present alternative payment methods (credit/debit card or saved payment) without requiring the user to restart the checkout flow.
+- **R-07** When a first-time user reaches the notification opt-in step during onboarding, the app shall display a custom in-app screen before the iOS system prompt that describes in plain language the specific notification types the user will receive, and show the iOS system dialog only after the user taps 'Continue' on the custom screen.
+- **R-08** When a first-time user taps 'Decline' or 'Not Now' on the custom pre-prompt notification screen, the app shall suppress the iOS system notification dialog, allow the user to proceed into the app without interruption, and not display the custom pre-prompt screen again during the same session.
+- **R-09** When an order status changes to 'Confirmed', 'Shipped', or 'Out for Delivery' in the backend system for an iOS shopper who has opted in to push notifications, the app shall deliver a push notification to the user's device within 5 minutes of the status change, displaying the relevant status text and order identifier.
+- **R-10** When an order status change event is triggered in the backend for an iOS shopper who has opted out of push notifications at the iOS system level, the app shall not deliver a push notification to the device, not log an error in the app, and display the updated order status within the app when the user next opens it.
+- **R-11** When an opted-in iOS shopper taps a delivered promotional push notification containing a valid deep link, the app shall open directly to the relevant product page or category page within 2 seconds without routing the user through the app home screen.
+- **R-12** If a user taps a promotional push notification whose deep link targets a product that has been removed from the catalog, then the app shall open and display a clear 'Product no longer available' message on the intended destination page instead of a blank screen or unhandled error.
+- **R-13** If the payment processor returns a decline response during an Apple Pay checkout initiated by an authenticated iOS shopper, then the app shall display a clear, human-readable error message (e.g., 'Your Apple Pay payment was declined. Please try another payment method.'), fully preserve the cart contents, and present selectable alternative payment methods without requiring the user to re-enter cart or shipping information.
+- **R-14** When a guest user taps 'Add to Cart' on a product page, the app shall add the item to a guest cart and update the cart item count in the UI without displaying a sign-in or registration prompt.
+- **R-15** When a guest user with one or more items in their guest cart taps 'Proceed to Checkout', the app shall prompt the user to sign in or create an account, preserve all guest cart items, display those items in the checkout summary after authentication is complete, and ensure no items are lost during the sign-in or registration transition.
 
 ## Risks
 
-- **HIGH** — Apple App Store rejection due to WebView-only content policy. Apple's guideline 4.2 ('Minimum Functionality') and 2.12 reject apps that are little more than a web browser. If reviewers classify the wrapper as providing insufficient native value beyond Safari, the app will be rejected or removed post-launch, blocking the entire initiative.  
-  *Mitigation:* Ensure the app demonstrably uses native APIs (Apple Pay, biometrics, push notifications) that are impossible in Safari. Document these native integrations explicitly in the App Store review notes. Engage an App Store specialist to pre-review the submission and prepare a clear rejection appeal. Avoid generic UserAgent strings that signal pure WebView to reviewers.
-- **HIGH** — Apple Pay JS/WebView bridge integration failure causing checkout breakage. The Apple Pay JS API must be invoked from a WKWebView with correctly configured merchant domain verification, entitlements, and a valid payment processing certificate. A misconfiguration in any layer—domain association file, entitlement, or the native-JS bridge—silently prevents the payment sheet from appearing, causing 100% checkout failure for Apple Pay and missing the 30% adoption metric.  
-  *Mitigation:* Build and test the Apple Pay bridge end-to-end in a sandbox environment before any beta. Write automated integration tests that exercise the WKWebView-to-native delegate flow. Confirm merchant domain verification files are deployed and accessible before submission. Define a feature flag to disable Apple Pay at runtime if production errors spike, falling back to card entry.
-- **HIGH** — WebView load-time SLA failure on real-world networks causing immediate user drop-off and poor ratings. The 3-second interactive threshold on iPhone 12 / 4G is tight given the existing mobile-web bundle size. Any regression in web asset size, CDN latency, or WKWebView cold-start overhead could push p95 load times above 3 seconds, directly triggering abandonment and 1–2 star reviews before a fix can be shipped.  
-  *Mitigation:* Instrument real-user monitoring (RUM) with a WebView-to-native timing bridge reporting to an observability platform from day one. Pre-warm the WKWebView process pool and pre-cache critical assets via URLCache on app launch. Set a CI performance budget that fails the build if Lighthouse mobile score drops below a threshold. Establish an on-call alert if p95 load time exceeds 2.5 seconds in production.
-- **MEDIUM** — Push notification opt-in rate falls below 45% because the prompt fires at the wrong moment, wasting the single iOS permission request. iOS only allows one native permission prompt; if it appears too early (e.g., on app open before any value is demonstrated) the majority of users will decline, with no programmatic recovery path short of guiding users to Settings manually.  
-  *Mitigation:* Gate the native permission request behind an in-app soft prompt (custom UI) that explains value first, shown only after a user completes a meaningful action (e.g., first browse of a category or after order confirmation). A/B test the trigger moment in a limited rollout before broad launch. Instrument decline rates by trigger point and iterate on placement before the 60-day opt-in metric is evaluated.
-- **MEDIUM** — Go-to-market risk: Low App Store discoverability and slow rating accumulation mean the 500-rating / 4.3-star threshold is not reached within 90 days. Without an existing iOS install base, organic ratings accrue slowly; a small number of negative reviews from performance or login issues in early weeks can anchor the average below 4.3 stars before positive volume catches up.  
-  *Mitigation:* Launch a targeted email and push (web) campaign to the existing mobile-web customer base to drive early installs from engaged users most likely to leave positive reviews. Integrate an in-app review prompt (SKStoreReviewAPI) triggered after a confirmed successful purchase—the highest-satisfaction moment. Monitor ratings daily in the first 30 days; triage and hotfix any issue pattern appearing in 1–2 star reviews before it compounds.
-- **MEDIUM** — Biometric credential storage misconfiguration exposing stored tokens or locking users out after OS upgrades. If the Keychain item accessibility attribute is set too permissively (e.g., kSecAttrAccessibleAlways) or the biometric policy binding is incorrect, stored auth tokens could be accessible without authentication or could be invalidated after an iOS update or biometric re-enrollment, silently logging all returning users out and generating negative reviews and support volume.  
-  *Mitigation:* Use kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly with LAContext biometric binding for all stored credentials. Write unit tests covering Keychain read/write under simulated biometric-invalidation conditions. Implement a graceful fallback (story already scoped for P1) that detects Keychain retrieval failure and routes to password login with a clear, non-alarming message. Conduct a security review of Keychain usage before submission.
+> [!CAUTION]
+> **HIGH** — Apple Pay entitlement and merchant ID configuration errors delay launch. Misconfigured merchant certificates, missing Associated Domains entitlements, or sandbox/production environment mismatches can cause Apple Pay to silently fail or be unavailable on device—blocking the P0 checkout story and the 30% checkout-time reduction metric.
+>
+> *Mitigation:* Allocate a dedicated spike (2–3 days) early in the sprint to provision merchant IDs, generate payment processing certificates, and validate end-to-end Apple Pay flows on physical devices in both sandbox and production environments. Define a go/no-go gate: Apple Pay must pass on at least two physical device models before the build is submitted to App Store review.
+
+> [!CAUTION]
+> **HIGH** — WKWebView or web-to-native bridge instability causes cart state loss during the Apple Pay fallback flow. If the native shell hands off to a web payment fallback after a declined Apple Pay transaction, session cookies or cart tokens may not persist across the context switch, resulting in lost carts—directly contradicting the P0 fallback story.
+>
+> *Mitigation:* Implement explicit cart-state serialization before initiating any payment flow; restore state from local storage or a server-side cart ID on every payment context switch. Write automated UI tests covering the decline-and-fallback scenario and include it in the regression suite before launch.
+
+> [!CAUTION]
+> **HIGH** — Face ID / Touch ID Keychain credential storage is not encrypted at the correct accessibility level, leaving stored tokens accessible when the device is unlocked by any means (not just biometrics). This is a security regression vs. the existing web login and could trigger an App Store rejection or a post-launch security disclosure.
+>
+> *Mitigation:* Store authentication tokens using kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly with kSecAccessControlBiometryCurrentSet. Conduct a Keychain security review with a mobile security engineer before TestFlight beta. Include this as a documented acceptance criterion on the biometric login story.
+
+> [!WARNING]
+> **MEDIUM** — Push notification opt-in rate falls well below the 50% target because the pre-permission soft-prompt is shown immediately at first launch before users have experienced any app value. Users who decline the soft prompt will also decline the iOS system dialog, and that decision is permanent until they manually revisit Settings.
+>
+> *Mitigation:* Delay the opt-in prompt until a clear value moment (e.g., immediately after first order confirmation or after the user views order history). A/B test prompt timing and copy in the first 30 days post-launch. Track soft-prompt acceptance rate and iOS system dialog acceptance rate separately so the funnel failure point is observable.
+
+> [!WARNING]
+> **MEDIUM** — App Store review rejection due to insufficient native functionality. Apple has historically rejected apps that are thin wrappers around a web view with no meaningful native features beyond the web content. A primarily WKWebView-based shell with only Apple Pay and biometrics bolted on could be flagged under App Store Review Guideline 4.2 (Minimum Functionality).
+>
+> *Mitigation:* Audit the submission against Guideline 4.2 before first submission. Ensure the native layer provides demonstrable value: biometric auth, Apple Pay, push notifications, and deep-link routing should all be explicitly functional and reviewable in the demo account provided to Apple. Prepare a reviewer note that itemizes each native capability. Budget one iteration cycle (1–2 weeks) for a potential rejection and resubmission.
+
+> [!WARNING]
+> **MEDIUM** — The 20%-of-mobile-order-volume target is undermined by insufficient App Store discoverability and lack of a migration nudge for existing mobile-web users. Without ASO investment and an in-browser prompt directing existing customers to the app, organic installs alone are unlikely to shift a meaningful share of order volume within 6 months.
+>
+> *Mitigation:* Launch a Smart App Banner on the mobile web store on day one to convert existing web sessions to app installs. Invest in App Store Optimization (keyword research, screenshot creative, preview video) before launch. Define a paid UA budget and channel plan targeting existing email/SMS subscribers. Set a 60-day install milestone (e.g., 10,000 installs) as an early leading indicator before the 6-month order-volume target is evaluated.
 
 ## Out of scope
 
-- Android app or Android WebView wrapper
-- Full native iOS rewrite replacing the WebView approach
-- In-app purchase or App Store subscription billing (IAP)
-- Native iOS widgets or App Clips
-- Web push notifications for the mobile-web channel (non-app)
-- iPad-specific layout optimizations
-- Accessibility / WCAG compliance remediation of the underlying mobile-web codebase
-- Backend changes to the storefront API or checkout service
+- Android app or Google Play Store distribution
+- iPad-optimized layout or split-view support
+- In-app purchase flows using Apple's StoreKit (physical goods sold via Apple Pay are out of App Store in-app purchase scope, but this distinction must be documented)
+- Offline browsing or service-worker-style caching within the native shell
+- Apple Watch or App Clip variants
+- Customer support chat or live agent features within the app
+- Loyalty points, referral programs, or gamification mechanics
+- Backend commerce platform changes required solely for web parity (scope is the iOS container, not re-platforming the store)
 
 ## Open questions
 
-- Which merchant payment processor will handle Apple Pay, and has the merchant identifier and payment processing certificate already been provisioned? What is the lead time if not?
-- What is the current mobile-web p95 Time-to-Interactive on 4G, and has a performance baseline been established to determine the gap to the 3-second SLA before development begins?
-- How will authenticated sessions be shared or bridged between the existing mobile-web session (cookie/token) and the native Keychain-backed biometric credential to avoid forcing re-login on first app launch?
-- What push notification platform will be used for APN delivery (e.g., Firebase, Braze, custom), and who owns the campaign tooling and segmentation for the promotional alerts?
-- Does the existing mobile-web storefront require Content Security Policy changes to permit the WKWebView origin, and who owns that change in the web team?
-- What is the minimum supported iOS version, and how does that affect WKWebView API availability and the biometric API surface (e.g., LAContext availability on older OS versions)?
+- Is the shell architecture primarily WKWebView rendering the existing mobile web store, a fully native UI, or a hybrid? The answer materially affects the App Store rejection risk and the effort to hit the App Store rating target.
+- Which push notification service will be used (APNs direct, Firebase Cloud Messaging, or a third-party CDP like Braze or Klaviyo), and is the backend notification infrastructure already built or does it need to be scoped?
+- How will cart and session state be shared between the mobile web store and the iOS app for users who switch channels mid-session? Is there a server-side cart ID that can be referenced across both surfaces?
+- What is the Apple Pay merchant category code and are there any regulatory or payment processor constraints (e.g., high-risk goods categories) that could complicate merchant ID approval?
+- Is there an existing account system with OAuth/JWT tokens that biometric login can wrap, or does the authentication architecture need to be extended to support token-based silent re-authentication?
+- What are the deep-link URL schema standards for promotional push notifications, and who owns the mapping between notification payload and in-app destination (marketing team, backend, or mobile engineering)?

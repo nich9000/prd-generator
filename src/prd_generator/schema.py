@@ -89,6 +89,33 @@ class Risk(BaseModel):
     mitigation: str
 
 
+class Diagram(BaseModel):
+    """A Mermaid diagram block. GitHub renders these natively in .md files."""
+
+    title: str = Field(..., description="Short title shown above the diagram")
+    kind: Literal["user_flow", "system_context", "state", "sequence", "other"]
+    mermaid: str = Field(..., description="Raw Mermaid source, no fences")
+
+    def render(self) -> str:
+        # Strip any accidental fences the model might have included.
+        code = self.mermaid.strip()
+        if code.startswith("```"):
+            code = code.split("\n", 1)[1] if "\n" in code else ""
+            if code.endswith("```"):
+                code = code.rsplit("```", 1)[0]
+        code = code.strip()
+        return f"### {self.title}\n\n```mermaid\n{code}\n```"
+
+
+# Map risk severity to GitHub-flavored alert blocks. These render with
+# colored borders + icons in the GitHub web view.
+_SEVERITY_ALERT = {
+    "high": "CAUTION",
+    "medium": "WARNING",
+    "low": "NOTE",
+}
+
+
 class PRD(BaseModel):
     title: str
     one_liner: str = Field(..., description="The original one-line idea")
@@ -99,14 +126,43 @@ class PRD(BaseModel):
     acceptance_criteria: list[AcceptanceCriterion]
     ears_specs: list[EarsSpec]
     risks: list[Risk]
+    diagrams: list[Diagram] = Field(default_factory=list)
     out_of_scope: list[str] = Field(default_factory=list)
     open_questions: list[str] = Field(default_factory=list)
+
+    def _at_a_glance_table(self) -> str:
+        """A 4-row summary table for fast scanning at the top of the doc."""
+        p0_count = sum(1 for s in self.user_stories if s.priority == "P0")
+        # Pick the highest-severity risk for the headline.
+        order = {"high": 0, "medium": 1, "low": 2}
+        sorted_risks = sorted(self.risks, key=lambda r: order.get(r.severity, 3))
+        top_risk = sorted_risks[0] if sorted_risks else None
+        primary_metric = self.success_metrics[0] if self.success_metrics else "—"
+
+        risk_cell = (
+            f"{top_risk.severity.upper()} — {top_risk.description}"
+            if top_risk
+            else "—"
+        )
+        return (
+            "| | |\n"
+            "|---|---|\n"
+            f"| **Primary metric** | {primary_metric} |\n"
+            f"| **Top risk** | {risk_cell} |\n"
+            f"| **Scope** | {len(self.user_stories)} stories ({p0_count} P0) · {len(self.ears_specs)} requirements |\n"
+            f"| **Persona** | {self.target_user} |\n"
+        )
 
     def to_markdown(self) -> str:
         """Render the PRD as a polished markdown document."""
         lines: list[str] = []
         lines.append(f"# {self.title}\n")
         lines.append(f"> {self.one_liner}\n")
+        lines.append(self._at_a_glance_table())
+        if self.diagrams:
+            lines.append("\n## Overview\n")
+            for d in self.diagrams:
+                lines.append(d.render() + "\n")
         lines.append("## Problem\n")
         lines.append(self.problem + "\n")
         lines.append("## Target user\n")
@@ -124,10 +180,19 @@ class PRD(BaseModel):
         for i, r in enumerate(self.ears_specs, 1):
             lines.append(f"- **R-{i:02d}** {r.render()}")
         lines.append("\n## Risks\n")
-        for r in self.risks:
-            lines.append(f"- **{r.severity.upper()}** -- {r.description}  \n  *Mitigation:* {r.mitigation}")
+        # Group risks by severity, render each as a GitHub alert block.
+        order = {"high": 0, "medium": 1, "low": 2}
+        sorted_risks = sorted(self.risks, key=lambda r: order.get(r.severity, 3))
+        for r in sorted_risks:
+            alert = _SEVERITY_ALERT.get(r.severity, "NOTE")
+            lines.append(
+                f"> [!{alert}]\n"
+                f"> **{r.severity.upper()}** — {r.description}\n"
+                f">\n"
+                f"> *Mitigation:* {r.mitigation}\n"
+            )
         if self.out_of_scope:
-            lines.append("\n## Out of scope\n")
+            lines.append("## Out of scope\n")
             for x in self.out_of_scope:
                 lines.append(f"- {x}")
         if self.open_questions:

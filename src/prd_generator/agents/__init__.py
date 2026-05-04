@@ -5,6 +5,7 @@ from .story_writer import write_stories
 from .acceptance_writer import write_acceptance
 from .ears_author import author_ears
 from .risk_auditor import audit_risks
+from .diagrammer import diagram
 
 __all__ = [
     "frame",
@@ -12,4 +13,5 @@ __all__ = [
     "write_acceptance",
     "author_ears",
     "audit_risks",
+    "diagram",
 ]
