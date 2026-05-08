@@ -14,11 +14,7 @@ A fully-rendered PRD comes back in 30-50 seconds, with diagrams that GitHub rend
   <em>The user-flow Mermaid diagram from <a href="examples/ai_shopping_assistant.md">examples/ai_shopping_assistant.md</a>, rendered by GitHub. Generated automatically by the Diagrammer agent — no hand-drawing.</em>
 </p>
 
-## Part of The PM Scaffold
-
-This repo is one of two reference implementations of the **Specs** rung of [The PM Scaffold](https://github.com/nich9000/ears-spec-agent#the-pm-scaffold) — a framework for working as a product manager in the agentic era. The Scaffold names four rungs (Specs, Memory, Orchestration, Evaluation) that stay constant while the AI tools underneath rotate. `prd-generator` and [`ears-spec-agent`](https://github.com/nich9000/ears-spec-agent) both live in Specs, at different scopes.
-
-You swap rungs, not the scaffold. More rungs and reference implementations to follow.
+This repo is one of two reference implementations of the **Specs** rung of [The PM Scaffold](https://github.com/nich9000/pm-scaffold) — alongside [`ears-spec-agent`](https://github.com/nich9000/ears-spec-agent). See the [framework repo](https://github.com/nich9000/pm-scaffold) for the four-rung thesis and roadmap.
 
 ## What you get, concretely
 
